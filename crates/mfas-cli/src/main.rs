@@ -8,6 +8,7 @@ use commands::codec::{
 };
 use commands::dag::{handle_dag_cmd, DagArgs};
 use commands::generate::{handle_generate_cmd, GenerateArgs};
+use commands::gpu::{handle_gpu_cmd, GpuArgs};
 use commands::inspect::{handle_inspect_cmd, InspectArgs};
 use commands::node::{handle_node_cmd, NodeArgs};
 use commands::number::{handle_number_cmd, NumberArgs};
@@ -66,6 +67,8 @@ enum Commands {
     Dag(DagArgs),
     /// Performance benchmarks across addressing, codec, pages, and DAG
     Bench(BenchArgs),
+    /// GPU hardware compute adapter inspection and performance evaluation
+    Gpu(GpuArgs),
 }
 
 fn main() {
@@ -84,6 +87,7 @@ fn main() {
         Commands::Generate(args) => handle_generate_cmd(args, cli.json, cli.quiet),
         Commands::Dag(args) => handle_dag_cmd(args, cli.json, cli.quiet),
         Commands::Bench(args) => handle_bench_cmd(args, cli.json, cli.quiet),
+        Commands::Gpu(args) => handle_gpu_cmd(args, cli.json, cli.quiet),
     };
 
     if let Err(e) = result {

@@ -6,3 +6,5 @@ description = "Mathematical File Address Space - GPU Execution Engine (Future In
 
 [dependencies]
 mfas-core = { path = "../mfas-core" }
+serde = { version = "1.0", features = ["derive"] }
+thiserror = "1.0"

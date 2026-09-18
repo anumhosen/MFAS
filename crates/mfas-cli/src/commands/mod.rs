@@ -3,6 +3,7 @@ pub mod bench;
 pub mod codec;
 pub mod dag;
 pub mod generate;
+pub mod gpu;
 pub mod inspect;
 pub mod node;
 pub mod number;
