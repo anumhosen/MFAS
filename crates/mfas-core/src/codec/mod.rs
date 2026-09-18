@@ -24,10 +24,13 @@ pub struct VerificationReport {
     pub verified: bool,
 }
 
-/// Encode an arbitrary byte reader into a canonical root Address
+/// Encode an arbitrary byte reader into a canonical root Address in constant memory
 pub fn encode<R: Read>(reader: &mut R, store: &mut dyn AddressStore) -> Result<Address, CoreError> {
-    let mut pages: Vec<Page> = Vec::new();
     let mut buf = vec![0u8; PAGE_SIZE];
+    let mut page_count = 0u64;
+    let mut first_page: Option<Page> = None;
+    let mut grouped_addrs: Vec<Address> = Vec::new();
+    let mut current_run: Option<(Address, u64)> = None;
 
     loop {
         let mut bytes_in_page = 0;
@@ -44,11 +47,52 @@ pub fn encode<R: Read>(reader: &mut R, store: &mut dyn AddressStore) -> Result<A
         }
 
         let page = Page::new(buf[..bytes_in_page].to_vec())?;
-        pages.push(page);
+
+        if page_count == 0 {
+            // Buffer the first page to see if EOF is reached next (single-page optimization)
+            first_page = Some(page);
+            page_count = 1;
+        } else {
+            // If first_page is still pending, commit it as page index 0
+            if let Some(fp) = first_page.take() {
+                let first_addr = fp.to_hash_address(0);
+                store.put(&first_addr, Node::Page(fp))?;
+                current_run = Some((first_addr, 1));
+            }
+
+            let curr_addr = page.to_hash_address(0);
+            store.put(&curr_addr, Node::Page(page))?;
+            page_count += 1;
+
+            // Update on-the-fly run-length grouping
+            match current_run.take() {
+                Some((prev_addr, count)) => {
+                    if prev_addr == curr_addr {
+                        current_run = Some((prev_addr, count + 1));
+                    } else {
+                        if count == 1 {
+                            grouped_addrs.push(prev_addr);
+                        } else {
+                            let rep = Node::Repeat {
+                                target: prev_addr,
+                                count,
+                            };
+                            let rep_addr = rep.to_address()?;
+                            store.put(&rep_addr, rep)?;
+                            grouped_addrs.push(rep_addr);
+                        }
+                        current_run = Some((curr_addr, 1));
+                    }
+                }
+                None => {
+                    current_run = Some((curr_addr, 1));
+                }
+            }
+        }
     }
 
     // 1. Empty input
-    if pages.is_empty() {
+    if page_count == 0 {
         let empty_node = Node::Data(Vec::new());
         let root = empty_node.to_address()?;
         store.put(&root, empty_node)?;
@@ -56,47 +100,28 @@ pub fn encode<R: Read>(reader: &mut R, store: &mut dyn AddressStore) -> Result<A
     }
 
     // 2. Single page input (<= 4096 bytes)
-    if pages.len() == 1 {
-        let page = pages.remove(0);
-        let addr = page.to_address(0);
-        store.put(&addr, Node::Page(page))?;
+    if let Some(fp) = first_page {
+        let addr = fp.to_address(0);
+        store.put(&addr, Node::Page(fp))?;
         return Ok(addr);
     }
 
-    // 3. Multi-page input: convert each page to its address and store it
-    let mut page_addrs: Vec<Address> = Vec::with_capacity(pages.len());
-    for (i, page) in pages.into_iter().enumerate() {
-        let addr = page.to_hash_address(i as u64);
-        store.put(&addr, Node::Page(page))?;
-        page_addrs.push(addr);
-    }
-
-    // 4. Run-length grouping of identical consecutive page addresses
-    let mut grouped_addrs: Vec<Address> = Vec::new();
-    let mut i = 0;
-    while i < page_addrs.len() {
-        let current = &page_addrs[i];
-        let mut count = 1u64;
-        while i + 1 < page_addrs.len() && page_addrs[i + 1] == *current {
-            count += 1;
-            i += 1;
-        }
-
-        if count > 1 {
-            let rep_node = Node::Repeat {
-                target: current.clone(),
+    // 3. Multi-page: flush remaining run
+    if let Some((prev_addr, count)) = current_run {
+        if count == 1 {
+            grouped_addrs.push(prev_addr);
+        } else {
+            let rep = Node::Repeat {
+                target: prev_addr,
                 count,
             };
-            let rep_addr = rep_node.to_address()?;
-            store.put(&rep_addr, rep_node)?;
+            let rep_addr = rep.to_address()?;
+            store.put(&rep_addr, rep)?;
             grouped_addrs.push(rep_addr);
-        } else {
-            grouped_addrs.push(current.clone());
         }
-        i += 1;
     }
 
-    // 5. Create root sequence
+    // 4. Create root sequence
     let seq_node = Node::Sequence(grouped_addrs);
     let root_addr = seq_node.to_address()?;
     store.put(&root_addr, seq_node)?;
@@ -217,6 +242,64 @@ pub fn verify_file<P: AsRef<Path>>(
 
     Ok(VerificationReport {
         file_path: p.display().to_string(),
+        root_address: root_addr,
+        total_bytes: count,
+        sha256: reconstructed_hash,
+        verified,
+    })
+}
+
+/// Reader adapter that passes all reads through a SHA-256 hasher and counts total bytes
+pub struct HashReader<'a, R: Read> {
+    inner: &'a mut R,
+    hasher: Sha256,
+    byte_count: u64,
+}
+
+impl<'a, R: Read> HashReader<'a, R> {
+    pub fn new(inner: &'a mut R) -> Self {
+        Self {
+            inner,
+            hasher: Sha256::new(),
+            byte_count: 0,
+        }
+    }
+
+    pub fn finalize(self) -> (String, u64) {
+        let hash = self.hasher.finalize();
+        (hex::encode(hash), self.byte_count)
+    }
+}
+
+impl<'a, R: Read> Read for HashReader<'a, R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let n = self.inner.read(buf)?;
+        if n > 0 {
+            self.hasher.update(&buf[..n]);
+            self.byte_count += n as u64;
+        }
+        Ok(n)
+    }
+}
+
+/// Verify an arbitrary byte stream by encoding to an address, decoding to a streaming hasher,
+/// and verifying exact SHA-256 and byte length match without intermediate files.
+pub fn verify_stream<R: Read>(
+    reader: &mut R,
+    store: &mut dyn AddressStore,
+) -> Result<VerificationReport, CoreError> {
+    let mut hash_reader = HashReader::new(reader);
+    let root_addr = encode(&mut hash_reader, store)?;
+    let (expected_hash, total_bytes) = hash_reader.finalize();
+
+    let mut verifier = HashWriter::<Vec<u8>>::new(None);
+    let count = decode_to_writer(&root_addr, store, &mut verifier)?;
+    let (reconstructed_hash, _) = verifier.finalize();
+
+    let verified = count == total_bytes && reconstructed_hash == expected_hash;
+
+    Ok(VerificationReport {
+        file_path: "<stream>".to_string(),
         root_address: root_addr,
         total_bytes: count,
         sha256: reconstructed_hash,

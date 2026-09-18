@@ -21,7 +21,7 @@ fn test_cli_dag_stats_and_json() {
     assert_eq!(stats_json["root_address"], root_addr);
     assert_eq!(stats_json["total_nodes"], 4); // Root seq + 3 page nodes
     assert_eq!(stats_json["total_edges"], 3);
-    assert_eq!(stats_json["leaf_nodes"], 3);
+    assert_eq!(stats_json["leaf_nodes"], 2);
 
     // 3. Human readable stats
     let stats_human = Command::new(env!("CARGO_BIN_EXE_mfas"))

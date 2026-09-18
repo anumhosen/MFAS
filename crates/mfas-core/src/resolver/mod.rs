@@ -33,9 +33,9 @@ pub struct Limits {
 impl Default for Limits {
     fn default() -> Self {
         Self {
-            max_depth: 64,
-            max_output_bytes: 10 * 1024 * 1024 * 1024, // 10 GiB
-            max_node_count: 1_000_000,
+            max_depth: 128,
+            max_output_bytes: 50 * 1024 * 1024 * 1024, // 50 GiB
+            max_node_count: 10_000_000,
         }
     }
 }

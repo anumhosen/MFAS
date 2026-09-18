@@ -1,11 +1,12 @@
 use clap::{Args, Subcommand};
 use mfas_core::{
-    decode_to_file, encode, hash_file, Address, FileStore, SyntheticStream,
+    decode_to_file, encode, hash_file, verify_stream, Address, FileStore, SyntheticStream,
 };
 use serde::Serialize;
 use std::fs::File;
 use std::io::{BufWriter, Read, Write};
 use std::path::PathBuf;
+use std::time::Instant;
 
 #[derive(Args, Debug)]
 pub struct GenerateArgs {
@@ -23,18 +24,18 @@ pub enum GenerateAction {
         /// Destination output file path
         output: PathBuf,
     },
-    /// Generate deterministic synthetic test data and encode it into MFAS
+    /// Stream deterministic synthetic test data through the encoder
     Synthetic {
-        /// Synthetic pattern: 'zeros', 'counter', 'repeat', 'random'
+        /// Synthetic pattern: zeros, counter, repeat, random
         #[arg(short, long, default_value = "zeros")]
         pattern: String,
 
-        /// Total size in bytes to generate
-        #[arg(short, long, default_value_t = 1048576)]
+        /// Total data length in bytes (e.g. 104857600 for 100MB)
+        #[arg(short, long, default_value_t = 65536)]
         size: u64,
 
-        /// Pattern hex string (used when pattern == 'repeat')
-        #[arg(long, default_value = "414243")]
+        /// Byte sequence in hex to repeat (used when pattern == 'repeat')
+        #[arg(long, default_value = "00")]
         repeat_hex: String,
 
         /// Deterministic random seed (used when pattern == 'random')
@@ -44,6 +45,10 @@ pub enum GenerateAction {
         /// Also write the raw synthetic bytes to this file path
         #[arg(short, long)]
         output: Option<PathBuf>,
+
+        /// Stream directly through encoder and decoder to verify SHA-256 integrity and measure throughput
+        #[arg(long)]
+        verify: bool,
     },
 }
 
@@ -54,6 +59,8 @@ struct SyntheticOutput {
     root_address: String,
     sha256: Option<String>,
     output_file: Option<String>,
+    verified: Option<bool>,
+    throughput_mb_s: Option<f64>,
 }
 
 pub fn handle_generate_cmd(
@@ -90,6 +97,7 @@ pub fn handle_generate_cmd(
             repeat_hex,
             seed,
             output,
+            verify,
         } => {
             let mut stream = match pattern.as_str() {
                 "zeros" => SyntheticStream::zeros(size),
@@ -110,8 +118,24 @@ pub fn handle_generate_cmd(
             };
 
             let mut store = FileStore::default_store()?;
+            let start = Instant::now();
 
-            let (root_addr, file_out, sha256_out) = if let Some(out_path) = output {
+            let (root_addr, file_out, sha256_out, verified_out, throughput_out) = if verify {
+                let report = verify_stream(&mut stream, &mut store)?;
+                let elapsed = start.elapsed().as_secs_f64();
+                let mb_s = if elapsed > 0.0 {
+                    (size as f64 / (1024.0 * 1024.0)) / elapsed
+                } else {
+                    0.0
+                };
+                (
+                    report.root_address,
+                    None,
+                    Some(report.sha256),
+                    Some(report.verified),
+                    Some(mb_s),
+                )
+            } else if let Some(out_path) = output {
                 // Tee into output file and encode
                 let file = File::create(&out_path)?;
                 let mut writer = BufWriter::new(file);
@@ -129,14 +153,28 @@ pub fn handle_generate_cmd(
                 let mut read_back = File::open(&out_path)?;
                 let addr = encode(&mut read_back, &mut store)?;
                 let (hash, _) = hash_file(&out_path)?;
+                let elapsed = start.elapsed().as_secs_f64();
+                let mb_s = if elapsed > 0.0 {
+                    (size as f64 / (1024.0 * 1024.0)) / elapsed
+                } else {
+                    0.0
+                };
                 (
                     addr,
                     Some(out_path.display().to_string()),
                     Some(hash),
+                    None,
+                    Some(mb_s),
                 )
             } else {
                 let addr = encode(&mut stream, &mut store)?;
-                (addr, None, None)
+                let elapsed = start.elapsed().as_secs_f64();
+                let mb_s = if elapsed > 0.0 {
+                    (size as f64 / (1024.0 * 1024.0)) / elapsed
+                } else {
+                    0.0
+                };
+                (addr, None, None, None, Some(mb_s))
             };
 
             if json {
@@ -146,6 +184,8 @@ pub fn handle_generate_cmd(
                     root_address: root_addr.to_uri(),
                     sha256: sha256_out,
                     output_file: file_out,
+                    verified: verified_out,
+                    throughput_mb_s: throughput_out,
                 };
                 println!("{}", serde_json::to_string_pretty(&out)?);
             } else if quiet {
@@ -154,12 +194,18 @@ pub fn handle_generate_cmd(
                 println!("MFAS Synthetic Data Generator");
                 println!("──────────────────────────────────────────");
                 println!("Pattern:       {}", pattern);
-                println!("Size:          {} bytes", size);
+                println!("Size:          {} bytes ({:.2} MiB)", size, size as f64 / (1024.0 * 1024.0));
                 if let Some(h) = sha256_out {
                     println!("SHA-256:       {}", h);
                 }
                 if let Some(f) = file_out {
                     println!("Saved to:      {}", f);
+                }
+                if let Some(v) = verified_out {
+                    println!("Verified:      {}", if v { "YES (Bit-for-bit exact)" } else { "FAILED" });
+                }
+                if let Some(tp) = throughput_out {
+                    println!("Throughput:    {:.2} MB/s", tp);
                 }
                 println!("Root Address:  {}", root_addr.to_uri());
             }

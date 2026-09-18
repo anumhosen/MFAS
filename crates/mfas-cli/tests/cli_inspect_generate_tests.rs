@@ -20,7 +20,7 @@ fn test_cli_inspect_tree_and_json() {
     assert!(inspect_out.status.success());
     let report: serde_json::Value = serde_json::from_slice(&inspect_out.stdout).unwrap();
     assert_eq!(report["total_bytes"], 10000);
-    assert_eq!(report["page_count"], 3); // 4096 + 4096 + 1808
+    assert_eq!(report["page_count"], 2); // 1 full page repeated 2x + 1 partial page
     assert_eq!(report["node_type"], "seq");
 
     // 3. Human-readable inspect
@@ -32,7 +32,7 @@ fn test_cli_inspect_tree_and_json() {
     let stdout = String::from_utf8_lossy(&inspect_human.stdout);
     assert!(stdout.contains("MFAS Address Inspection"));
     assert!(stdout.contains("Size:          10000 bytes"));
-    assert!(stdout.contains("Pages:         3"));
+    assert!(stdout.contains("Pages:         2"));
     assert!(stdout.contains("DAG Hierarchy:"));
 }
 

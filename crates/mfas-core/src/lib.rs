@@ -15,7 +15,8 @@ pub mod synthetic;
 
 pub use address::{Address, NodeType, CURRENT_VERSION, SCHEME_PREFIX};
 pub use codec::{
-    decode, decode_to_file, decode_to_writer, encode, hash_file, verify_file, VerificationReport,
+    decode, decode_to_file, decode_to_writer, encode, hash_file, verify_file, verify_stream,
+    HashReader, VerificationReport,
 };
 pub use dag::{build_dag, optimize_dag, DagGraph, DagStats, OptimizationReport};
 pub use enumeration::{bytes_to_number, length_offset, number_to_bytes};
