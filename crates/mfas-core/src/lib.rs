@@ -4,6 +4,7 @@
 
 pub mod address;
 pub mod codec;
+pub mod dag;
 pub mod enumeration;
 pub mod error;
 pub mod inspector;
@@ -16,6 +17,7 @@ pub use address::{Address, NodeType, CURRENT_VERSION, SCHEME_PREFIX};
 pub use codec::{
     decode, decode_to_file, decode_to_writer, encode, hash_file, verify_file, VerificationReport,
 };
+pub use dag::{build_dag, optimize_dag, DagGraph, DagStats, OptimizationReport};
 pub use enumeration::{bytes_to_number, length_offset, number_to_bytes};
 pub use error::{AddressError, CoreError, NodeError, PageError, ResolveError};
 pub use inspector::{inspect_address, InspectionReport};

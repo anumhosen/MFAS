@@ -104,6 +104,11 @@ impl Page {
         self.data.len()
     }
 
+    /// Length in bytes (alias for logical_len)
+    pub fn len(&self) -> usize {
+        self.data.len()
+    }
+
     /// Returns true if this page is a full 4096-byte page
     pub fn is_full(&self) -> bool {
         self.data.len() == PAGE_SIZE

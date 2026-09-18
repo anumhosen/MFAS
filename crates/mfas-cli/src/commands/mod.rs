@@ -1,5 +1,6 @@
 pub mod address;
 pub mod codec;
+pub mod dag;
 pub mod generate;
 pub mod inspect;
 pub mod node;

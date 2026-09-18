@@ -62,6 +62,11 @@ impl Node {
         }
     }
 
+    /// Extract all immediate child addresses as an owned vector
+    pub fn children(&self) -> Vec<Address> {
+        self.child_addresses().into_iter().cloned().collect()
+    }
+
     /// Convert node into its canonical Address representation
     pub fn to_address(&self) -> Result<Address, NodeError> {
         match self {
