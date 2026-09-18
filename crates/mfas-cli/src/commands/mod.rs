@@ -1,4 +1,5 @@
 pub mod address;
+pub mod bench;
 pub mod codec;
 pub mod dag;
 pub mod generate;

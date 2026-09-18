@@ -3,6 +3,7 @@
 //! Core mathematical models, address spaces, pages, nodes, and reversibility invariants.
 
 pub mod address;
+pub mod bench;
 pub mod codec;
 pub mod dag;
 pub mod enumeration;
@@ -14,6 +15,10 @@ pub mod resolver;
 pub mod synthetic;
 
 pub use address::{Address, NodeType, CURRENT_VERSION, SCHEME_PREFIX};
+pub use bench::{
+    bench_address, bench_all, bench_codec, bench_dag, bench_page, AddressBenchResult,
+    AllBenchResult, CodecBenchResult, DagBenchResult, PageBenchResult,
+};
 pub use codec::{
     decode, decode_to_file, decode_to_writer, encode, hash_file, verify_file, verify_stream,
     HashReader, VerificationReport,

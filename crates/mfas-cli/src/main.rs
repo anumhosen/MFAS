@@ -2,6 +2,7 @@ mod commands;
 
 use clap::{Parser, Subcommand};
 use commands::address::{handle_address_cmd, AddressArgs};
+use commands::bench::{handle_bench_cmd, BenchArgs};
 use commands::codec::{
     handle_decode_cmd, handle_encode_cmd, handle_verify_cmd, DecodeArgs, EncodeArgs, VerifyArgs,
 };
@@ -63,6 +64,8 @@ enum Commands {
     Generate(GenerateArgs),
     /// Directed Acyclic Graph analysis, DOT export, and CSE optimization
     Dag(DagArgs),
+    /// Performance benchmarks across addressing, codec, pages, and DAG
+    Bench(BenchArgs),
 }
 
 fn main() {
@@ -80,6 +83,7 @@ fn main() {
         Commands::Inspect(args) => handle_inspect_cmd(args, cli.json, cli.quiet),
         Commands::Generate(args) => handle_generate_cmd(args, cli.json, cli.quiet),
         Commands::Dag(args) => handle_dag_cmd(args, cli.json, cli.quiet),
+        Commands::Bench(args) => handle_bench_cmd(args, cli.json, cli.quiet),
     };
 
     if let Err(e) = result {
