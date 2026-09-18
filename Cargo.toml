@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "crates/mfas-core",
+    "crates/mfas-cli",
+    "crates/mfas-gpu",
+]
+resolver = "2"
