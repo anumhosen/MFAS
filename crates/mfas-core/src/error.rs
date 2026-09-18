@@ -5,6 +5,9 @@ use thiserror::Error;
 pub enum CoreError {
     #[error("Address error: {0}")]
     Address(#[from] AddressError),
+
+    #[error("Page error: {0}")]
+    Page(#[from] PageError),
 }
 
 /// Errors occurring during Address parsing, formatting, or binary serialization
@@ -42,4 +45,23 @@ pub enum AddressError {
 
     #[error("Malformed binary payload: unexpected end of stream or length mismatch")]
     MalformedBinaryPayload,
+}
+
+/// Errors occurring during Page creation, splitting, or reconstruction
+#[derive(Debug, Error, PartialEq, Eq, Clone)]
+pub enum PageError {
+    #[error("Page size exceeds maximum 4096 bytes: got {0}")]
+    PageSizeExceeded(usize),
+
+    #[error("Page data cannot be empty")]
+    EmptyPage,
+
+    #[error("Target address is not a page node")]
+    NotAPageAddress,
+
+    #[error("Invalid page address payload length: expected at least 10 bytes, got {0}")]
+    InvalidPayloadLength(usize),
+
+    #[error("Logical length mismatch: header specifies {expected} bytes, but got {actual} bytes")]
+    LogicalLengthMismatch { expected: usize, actual: usize },
 }
