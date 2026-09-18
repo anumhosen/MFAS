@@ -5,6 +5,8 @@ use commands::address::{handle_address_cmd, AddressArgs};
 use commands::codec::{
     handle_decode_cmd, handle_encode_cmd, handle_verify_cmd, DecodeArgs, EncodeArgs, VerifyArgs,
 };
+use commands::generate::{handle_generate_cmd, GenerateArgs};
+use commands::inspect::{handle_inspect_cmd, InspectArgs};
 use commands::node::{handle_node_cmd, NodeArgs};
 use commands::number::{handle_number_cmd, NumberArgs};
 use commands::page::{handle_page_cmd, PageArgs};
@@ -54,6 +56,10 @@ enum Commands {
     Decode(DecodeArgs),
     /// Encode, reconstruct, and verify SHA-256 integrity of a file
     Verify(VerifyArgs),
+    /// Topologically inspect an MFAS address and render its ASCII DAG hierarchy
+    Inspect(InspectArgs),
+    /// Deterministic large file generator and test data builder
+    Generate(GenerateArgs),
 }
 
 fn main() {
@@ -68,6 +74,8 @@ fn main() {
         Commands::Encode(args) => handle_encode_cmd(args, cli.json, cli.quiet),
         Commands::Decode(args) => handle_decode_cmd(args, cli.json, cli.quiet),
         Commands::Verify(args) => handle_verify_cmd(args, cli.json, cli.quiet),
+        Commands::Inspect(args) => handle_inspect_cmd(args, cli.json, cli.quiet),
+        Commands::Generate(args) => handle_generate_cmd(args, cli.json, cli.quiet),
     };
 
     if let Err(e) = result {
