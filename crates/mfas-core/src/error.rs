@@ -8,6 +8,9 @@ pub enum CoreError {
 
     #[error("Page error: {0}")]
     Page(#[from] PageError),
+
+    #[error("Node error: {0}")]
+    Node(#[from] NodeError),
 }
 
 /// Errors occurring during Address parsing, formatting, or binary serialization
@@ -64,4 +67,32 @@ pub enum PageError {
 
     #[error("Logical length mismatch: header specifies {expected} bytes, but got {actual} bytes")]
     LogicalLengthMismatch { expected: usize, actual: usize },
+}
+
+/// Errors occurring during Node operations and deserialization
+#[derive(Debug, Error, PartialEq, Eq, Clone)]
+pub enum NodeError {
+    #[error("Sequence node must contain at least one child address")]
+    EmptySequence,
+
+    #[error("Repeat count must be greater than zero")]
+    ZeroRepeatCount,
+
+    #[error("Slice length must be greater than zero: offset {offset}, length {length}")]
+    InvalidSliceRange { offset: u64, length: u64 },
+
+    #[error("Node payload corrupted or truncated: {0}")]
+    InvalidPayload(String),
+
+    #[error("Node type mismatch: expected {expected:?}, got {actual:?}")]
+    TypeMismatch {
+        expected: crate::address::NodeType,
+        actual: crate::address::NodeType,
+    },
+
+    #[error("Address error: {0}")]
+    Address(#[from] AddressError),
+
+    #[error("Page error: {0}")]
+    Page(#[from] PageError),
 }
