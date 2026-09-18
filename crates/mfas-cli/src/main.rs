@@ -5,6 +5,7 @@ use commands::address::{handle_address_cmd, AddressArgs};
 use commands::node::{handle_node_cmd, NodeArgs};
 use commands::number::{handle_number_cmd, NumberArgs};
 use commands::page::{handle_page_cmd, PageArgs};
+use commands::resolve::{handle_resolve_cmd, ResolveArgs};
 use serde_json::json;
 
 #[derive(Parser, Debug)]
@@ -42,6 +43,8 @@ enum Commands {
     Page(PageArgs),
     /// Create, inspect, and manipulate recursive MFAS nodes
     Node(NodeArgs),
+    /// Recursively resolve an MFAS address into concrete bytes or files
+    Resolve(ResolveArgs),
 }
 
 fn main() {
@@ -52,6 +55,7 @@ fn main() {
         Commands::Number(args) => handle_number_cmd(args, cli.json, cli.quiet),
         Commands::Page(args) => handle_page_cmd(args, cli.json, cli.quiet),
         Commands::Node(args) => handle_node_cmd(args, cli.json, cli.quiet),
+        Commands::Resolve(args) => handle_resolve_cmd(args, cli.json, cli.quiet),
     };
 
     if let Err(e) = result {

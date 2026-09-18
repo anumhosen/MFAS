@@ -11,6 +11,9 @@ pub enum CoreError {
 
     #[error("Node error: {0}")]
     Node(#[from] NodeError),
+
+    #[error("Resolve error: {0}")]
+    Resolve(#[from] ResolveError),
 }
 
 /// Errors occurring during Address parsing, formatting, or binary serialization
@@ -95,4 +98,38 @@ pub enum NodeError {
 
     #[error("Page error: {0}")]
     Page(#[from] PageError),
+}
+
+/// Errors occurring during recursive resolution and evaluation
+#[derive(Debug, Error, PartialEq, Eq, Clone)]
+pub enum ResolveError {
+    #[error("Cycle detected in DAG address graph: {path}")]
+    CycleDetected { path: String },
+
+    #[error("Recursion depth limit exceeded: current {current} > limit {limit}")]
+    MaxDepthExceeded { limit: usize, current: usize },
+
+    #[error("Output bytes limit exceeded: total {current} > limit {limit}")]
+    MaxOutputBytesExceeded { limit: u64, current: u64 },
+
+    #[error("Node evaluation count limit exceeded: limit {limit}")]
+    MaxNodeCountExceeded { limit: usize },
+
+    #[error("Node not found in storage or address not self-describing: {0}")]
+    NodeNotFound(String),
+
+    #[error("I/O error during streaming resolution: {0}")]
+    IoError(String),
+
+    #[error("Address error: {0}")]
+    Address(#[from] AddressError),
+
+    #[error("Node error: {0}")]
+    Node(#[from] NodeError),
+}
+
+impl From<std::io::Error> for ResolveError {
+    fn from(err: std::io::Error) -> Self {
+        ResolveError::IoError(err.to_string())
+    }
 }
