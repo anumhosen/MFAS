@@ -124,6 +124,20 @@ impl Page {
         Address::new(NodeType::Page, payload).expect("Page address creation is valid")
     }
 
+    /// Canonical content-addressed page address using SHA-256 (compact 42-byte payload)
+    pub fn to_hash_address(&self, page_index: u64) -> Address {
+        use sha2::{Digest, Sha256};
+        let mut hasher = Sha256::new();
+        hasher.update(&self.data);
+        let hash = hasher.finalize();
+
+        let mut payload = Vec::with_capacity(10 + 32);
+        payload.extend_from_slice(&page_index.to_be_bytes());
+        payload.extend_from_slice(&(self.data.len() as u16).to_be_bytes());
+        payload.extend_from_slice(&hash);
+        Address::new(NodeType::Page, payload).expect("Page hash address creation is valid")
+    }
+
     /// Decode a page and its page index from a canonical page Address
     pub fn from_address(addr: &Address) -> Result<(u64, Self), PageError> {
         if addr.node_type() != NodeType::Page {

@@ -2,6 +2,9 @@ mod commands;
 
 use clap::{Parser, Subcommand};
 use commands::address::{handle_address_cmd, AddressArgs};
+use commands::codec::{
+    handle_decode_cmd, handle_encode_cmd, handle_verify_cmd, DecodeArgs, EncodeArgs, VerifyArgs,
+};
 use commands::node::{handle_node_cmd, NodeArgs};
 use commands::number::{handle_number_cmd, NumberArgs};
 use commands::page::{handle_page_cmd, PageArgs};
@@ -45,6 +48,12 @@ enum Commands {
     Node(NodeArgs),
     /// Recursively resolve an MFAS address into concrete bytes or files
     Resolve(ResolveArgs),
+    /// Encode an arbitrary file into a canonical root Address
+    Encode(EncodeArgs),
+    /// Reconstruct an original file from its canonical root Address
+    Decode(DecodeArgs),
+    /// Encode, reconstruct, and verify SHA-256 integrity of a file
+    Verify(VerifyArgs),
 }
 
 fn main() {
@@ -56,6 +65,9 @@ fn main() {
         Commands::Page(args) => handle_page_cmd(args, cli.json, cli.quiet),
         Commands::Node(args) => handle_node_cmd(args, cli.json, cli.quiet),
         Commands::Resolve(args) => handle_resolve_cmd(args, cli.json, cli.quiet),
+        Commands::Encode(args) => handle_encode_cmd(args, cli.json, cli.quiet),
+        Commands::Decode(args) => handle_decode_cmd(args, cli.json, cli.quiet),
+        Commands::Verify(args) => handle_verify_cmd(args, cli.json, cli.quiet),
     };
 
     if let Err(e) = result {

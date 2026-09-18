@@ -66,9 +66,6 @@ impl Node {
     pub fn to_address(&self) -> Result<Address, NodeError> {
         match self {
             Node::Data(bytes) => {
-                if bytes.is_empty() {
-                    return Err(NodeError::InvalidPayload("Data node cannot be empty".into()));
-                }
                 Ok(Address::new(NodeType::Data, bytes.clone())?)
             }
             Node::Reference(addr) => {

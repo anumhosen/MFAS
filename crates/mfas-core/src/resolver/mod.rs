@@ -7,7 +7,7 @@
 
 pub mod store;
 
-pub use store::{AddressStore, MemoryStore};
+pub use store::{AddressStore, FileStore, MemoryStore};
 
 use crate::address::Address;
 use crate::error::ResolveError;

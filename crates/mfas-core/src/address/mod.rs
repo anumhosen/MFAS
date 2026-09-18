@@ -92,7 +92,7 @@ pub struct Address {
 impl Address {
     /// Create a new Address with validated components
     pub fn new(node_type: NodeType, payload: Vec<u8>) -> Result<Self, AddressError> {
-        if payload.is_empty() {
+        if payload.is_empty() && node_type != NodeType::Data {
             return Err(AddressError::EmptyPayload);
         }
         Ok(Self {
@@ -106,6 +106,9 @@ impl Address {
     pub fn from_hex(node_type: NodeType, hex_str: &str) -> Result<Self, AddressError> {
         let cleaned = hex_str.trim();
         if cleaned.is_empty() {
+            if node_type == NodeType::Data {
+                return Self::new(node_type, Vec::new());
+            }
             return Err(AddressError::EmptyPayload);
         }
         if cleaned.len() % 2 != 0 {
@@ -178,7 +181,7 @@ impl Address {
         }
 
         let payload = bytes[offset..offset + payload_len].to_vec();
-        if payload.is_empty() {
+        if payload.is_empty() && node_type != NodeType::Data {
             return Err(AddressError::EmptyPayload);
         }
 
@@ -226,6 +229,13 @@ impl FromStr for Address {
         let hex_payload = parts[3];
 
         if hex_payload.is_empty() {
+            if node_type == NodeType::Data {
+                return Ok(Self {
+                    version: version_num,
+                    node_type,
+                    payload: Vec::new(),
+                });
+            }
             return Err(AddressError::EmptyPayload);
         }
         if hex_payload.len() % 2 != 0 {
@@ -379,13 +389,26 @@ mod tests {
     #[test]
     fn test_empty_payload_rejected() {
         assert!(matches!(
-            Address::new(NodeType::Data, vec![]).unwrap_err(),
+            Address::new(NodeType::Ref, vec![]).unwrap_err(),
             AddressError::EmptyPayload
         ));
         assert!(matches!(
-            "mfas:v1:data:".parse::<Address>().unwrap_err(),
+            "mfas:v1:ref:".parse::<Address>().unwrap_err(),
             AddressError::EmptyPayload
         ));
+    }
+
+    #[test]
+    fn test_empty_data_node_allowed() {
+        let addr = Address::new(NodeType::Data, vec![]).unwrap();
+        assert_eq!(addr.to_uri(), "mfas:v1:data:");
+        let parsed: Address = "mfas:v1:data:".parse().unwrap();
+        assert_eq!(parsed, addr);
+        assert!(parsed.payload().is_empty());
+
+        let bin = addr.to_binary();
+        let restored = Address::from_binary(&bin).unwrap();
+        assert_eq!(restored, addr);
     }
 
     #[test]

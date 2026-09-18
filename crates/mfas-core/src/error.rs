@@ -14,6 +14,15 @@ pub enum CoreError {
 
     #[error("Resolve error: {0}")]
     Resolve(#[from] ResolveError),
+
+    #[error("I/O error: {0}")]
+    Io(String),
+}
+
+impl From<std::io::Error> for CoreError {
+    fn from(err: std::io::Error) -> Self {
+        CoreError::Io(err.to_string())
+    }
 }
 
 /// Errors occurring during Address parsing, formatting, or binary serialization

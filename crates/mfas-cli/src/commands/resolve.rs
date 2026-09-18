@@ -1,5 +1,5 @@
 use clap::Args;
-use mfas_core::{resolve_to_writer, Address, Limits, MemoryStore};
+use mfas_core::{resolve_to_writer, Address, FileStore, Limits};
 use serde::Serialize;
 use std::fs::File;
 use std::io::{self, BufWriter, Write};
@@ -63,7 +63,7 @@ pub fn handle_resolve_cmd(
     quiet: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let addr: Address = args.uri.parse()?;
-    let store = MemoryStore::new();
+    let store = FileStore::default_store()?;
     let limits = Limits {
         max_depth: args.max_depth,
         max_output_bytes: args.max_bytes,
