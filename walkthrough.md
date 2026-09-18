@@ -1,115 +1,120 @@
-# Walkthrough: MFAS Phase 1 & Phase 2
+# Walkthrough: MFAS Phase 1 through Phase 13 Complete
 
-We have completed **Phase 1 (Workspace Infrastructure)** and **Phase 2 (Address Mathematics & CLI Address Interface)** according to [MFAS Plan.md](file:///d:/Development/TAURI/MFAS/MFAS%20Plan.md) and [Address Format.md](file:///d:/Development/TAURI/MFAS/Address%20Format.md).
+We have completed the full phase-by-phase implementation of the **Mathematical File Address Space (MFAS)**, culminating in **Phase 13: Tauri Desktop Explorer**, fully satisfying [MFAS Plan.md](file:///d:/Development/TAURI/MFAS/MFAS%20Plan.md) and [Address Format.md](file:///d:/Development/TAURI/MFAS/Address%20Format.md).
 
 ---
 
-## 1. Project Tree
+## 1. Project Architecture
 
 ```text
 MFAS/
 ├── Cargo.toml
 ├── Address Format.md
 ├── MFAS Plan.md
-└── crates/
-    ├── mfas-core/
-    │   ├── Cargo.toml
-    │   └── src/
-    │       ├── address/
-    │       │   └── mod.rs
-    │       ├── error.rs
-    │       └── lib.rs
-    ├── mfas-cli/
-    │   ├── Cargo.toml
-    │   ├── src/
-    │   │   ├── commands/
-    │   │   │   ├── address.rs
-    │   │   │   └── mod.rs
-    │   │   └── main.rs
-    │   └── tests/
-    │       └── cli_address_tests.rs
-    └── mfas-gpu/
-        ├── Cargo.toml
-        └── src/
-            └── lib.rs
+├── crates/
+│   ├── mfas-core/              # Mathematical engine & algorithms
+│   │   ├── src/
+│   │   │   ├── address/        # Canonical address format & LEB128 serialization
+│   │   │   ├── enumeration/    # Bijective base-256 natural number mapping N <-> B*
+│   │   │   ├── page/           # 4096-byte pages & Radix-16 spatial hierarchy
+│   │   │   ├── node/           # Recursive node model (Data, Ref, Seq, Rep, Slice, Page)
+│   │   │   ├── resolver/       # Streaming evaluator, cycle detection, memoization
+│   │   │   ├── codec/          # FileStore, streaming pipeline, SHA-256 verification
+│   │   │   ├── inspector/      # ASCII hierarchy and DAG inspection
+│   │   │   ├── synthetic/      # Deterministic stream generators (counter, zeros, etc.)
+│   │   │   ├── dag/            # Graphviz DOT export, metrics, and CSE optimizer
+│   │   │   └── bench/          # Performance benchmark suite
+│   │   └── tests/
+│   │       └── large_data_tests.rs # 100MB streaming stress tests
+│   ├── mfas-cli/               # Production CLI commands (all subcommands)
+│   └── mfas-gpu/               # Evaluator trait, CpuEvaluator, SimdEvaluator, GpuEvaluator
+└── apps/
+    └── mfas-desktop/           # Tauri 2 Desktop Explorer
+        ├── src-tauri/          # Rust command boundary (address, page, dag, codec, gpu, window)
+        └── src/                # React + TypeScript + Tailwind CSS (gray scale theme)
+            ├── components/
+            │   ├── layout/     # Frameless TitleBar (VscChrome controls), Sidebar, StatusBar
+            │   └── views/      # 5 Core Explorers (Address, Page, DAG, Codec, GPU)
+            ├── context/        # ThemeContext (Dark/Light Tailwind gray scale)
+            ├── services/       # Typed Tauri command bridge with browser fallbacks
+            └── types/          # TypeScript DTO interfaces
 ```
 
 ---
 
-## 2. Files Created
+## 2. Phase 13 Implementation: Tauri Desktop Explorer
 
-- [Cargo.toml](file:///d:/Development/TAURI/MFAS/Cargo.toml): Root Cargo workspace definition.
-- [Address Format.md](file:///d:/Development/TAURI/MFAS/Address%20Format.md): Canonical Address Specification v1.
-- [crates/mfas-core/Cargo.toml](file:///d:/Development/TAURI/MFAS/crates/mfas-core/Cargo.toml): Core library crate manifest (`thiserror`, `serde`, `hex`, `num-bigint`).
-- [crates/mfas-core/src/lib.rs](file:///d:/Development/TAURI/MFAS/crates/mfas-core/src/lib.rs): Core library root exporting `Address`, `NodeType`, and error types.
-- [crates/mfas-core/src/error.rs](file:///d:/Development/TAURI/MFAS/crates/mfas-core/src/error.rs): Strongly-typed domain errors.
-- [crates/mfas-core/src/address/mod.rs](file:///d:/Development/TAURI/MFAS/crates/mfas-core/src/address/mod.rs): Address model, canonical URI parser/formatter, binary LEB128 serialization, and invariant unit tests.
-- [crates/mfas-cli/Cargo.toml](file:///d:/Development/TAURI/MFAS/crates/mfas-cli/Cargo.toml): CLI package configuring `mfas` binary and clap integration.
-- [crates/mfas-cli/src/main.rs](file:///d:/Development/TAURI/MFAS/crates/mfas-cli/src/main.rs): CLI entrypoint supporting global `--json`, `--quiet`, and `--verbose` flags.
-- [crates/mfas-cli/src/commands/mod.rs](file:///d:/Development/TAURI/MFAS/crates/mfas-cli/src/commands/mod.rs): Subcommand module root.
-- [crates/mfas-cli/src/commands/address.rs](file:///d:/Development/TAURI/MFAS/crates/mfas-cli/src/commands/address.rs): `mfas address` command handler (`parse`, `format`, `validate`, `to-binary`, `from-binary`).
-- [crates/mfas-cli/tests/cli_address_tests.rs](file:///d:/Development/TAURI/MFAS/crates/mfas-cli/tests/cli_address_tests.rs): Process-level CLI integration tests.
-- [crates/mfas-gpu/Cargo.toml](file:///d:/Development/TAURI/MFAS/crates/mfas-gpu/Cargo.toml) & [crates/mfas-gpu/src/lib.rs](file:///d:/Development/TAURI/MFAS/crates/mfas-gpu/src/lib.rs): Interface skeleton crate for future GPU acceleration.
+### Desktop Architecture & User Rules Compliance
+- **Custom Frameless Titlebar**: Built with draggable region (`data-tauri-drag-region`) and window controls strictly utilizing `react-icons/vsc` (`VscChromeMinimize`, `VscChromeMaximize`, `VscChromeRestore`, `VscChromeClose`).
+- **Tailwind CSS Gray Scale Theme**: Default sleek dark theme (`gray-950`, `gray-900`, `gray-800`) and clean light theme (`gray-50`, `gray-100`, `gray-200`) toggled via `ThemeContext`.
+- **Zero Core Logic Duplication**: React frontend acts strictly as a presentation layer, invoking strongly typed Tauri commands directly interfacing with `mfas-core` and `mfas-gpu`.
+- **No `cargo check`**: All verification performed exclusively via `cargo test --workspace`.
+- **File Deletion Safeguards**: No files deleted automatically. Obsolete review files tracked below.
 
----
+### 5 Primary Explorer Views
 
-## 3. Address Model
+1. **Address Space Explorer (`AddressExplorerView.tsx`)**:
+   - Decomposes canonical addresses into version, node type, payload length, and hex.
+   - Inspects variable-length binary serialization.
+   - Interactive bijection converter between natural numbers $N \in \mathbb{N}_0$ and finite byte strings $B^*$.
 
-- **Canonical URI Syntax**: `mfas:v1:<node_type>:<hex_payload>`
-- **Node Types**:
-  - `data` (Type ID `0x01`): Literal inline byte content.
-  - `ref` (Type ID `0x02`): Reference to another node or content address.
-  - `seq` (Type ID `0x03`): Sequence of child addresses.
-  - `rep` (Type ID `0x04`): Repeated pattern/node.
-  - `slice` (Type ID `0x05`): Sliced range of another node.
-  - `page` (Type ID `0x06`): Canonical 4096-byte logical page.
-- **Binary Layout**:
-  - `[0..4]` Magic: ASCII `MFAS` (`0x4D 0x46 0x41 0x53`)
-  - `[4]` Version: `0x01`
-  - `[5]` Type ID: `0x01..0x06`
-  - `[6..]` Variable length LEB128 payload byte size + raw payload bytes.
+2. **Radix-16 Pages & Coordinates (`PageExplorerView.tsx`)**:
+   - Deconstructs byte offsets or page indexes into base-16 spatial coordinates:
+     `Floor.Room.Wall.Shelf.Volume.Page + Intra-Page Offset`.
+   - Visual step breakdown with quick jump buttons for all boundary powers of 16 ($16^3 = 4096$, $16^4 = 65536$, $16^5 = 1\text{ MiB}$, etc.).
 
----
+3. **DAG Engine & Graph Analysis (`DagVisualizerView.tsx`)**:
+   - Analyzes DAG metrics: total vertices ($V$), directed edges ($E$), shared subtrees, topological depth, and sharing ratio.
+   - Automated Common Subexpression Elimination (CSE) reducer.
+   - Exportable Graphviz DOT visual representation.
 
-## 4. Mathematical Assumptions
+4. **File Codec & Verification Studio (`CodecStudioView.tsx`)**:
+   - One-click lossless file encoder to canonical MFAS root address.
+   - Streaming decoder reconstructing files from addresses to disk.
+   - Complete SHA-256 cryptographic verification verifying the core invariant:
+     $$\text{decode}(\text{encode}(X)) == X$$
 
-1. **Reversible Isomorphism**:
-   $$\text{parse}(\text{format}(A)) = A \quad \forall A \in \text{Address}$$
-   $$\text{from\_binary}(\text{to\_binary}(A)) = A \quad \forall A \in \text{Address}$$
-2. **Deterministic Canonicalization**:
-   Hex payload strings must be even-length, lower-case hexadecimal digits `[0-9a-f]`. Parsing normalizes uppercase hex into canonical lowercase.
-3. **Total Ordering**:
-   Addresses implement `Ord` and `PartialOrd` through lexicographical comparison of `(version, type_id, payload_bytes)`.
+5. **Hardware Evaluators & GPU Benchmarks (`BenchmarkGpuView.tsx`)**:
+   - Hardware detection for compute adapters (DirectX 12 / Vulkan) with graceful CPU fallback.
+   - Live micro-benchmark meters comparing CPU vs SIMD vs GPU parallel byte synthesis throughput in MB/s.
 
 ---
 
-## 5. Tests Implemented & Verification Results
+## 3. Verification & Test Results
 
-### Unit Tests (`mfas-core`)
-- `test_valid_address_roundtrip`: Reversibility of text URI generation and parsing.
-- `test_case_insensitivity_parsing`: Normalization of uppercase input to canonical lowercase.
-- `test_odd_length_hex_rejected`: Strict enforcement of byte-aligned even hex lengths.
-- `test_invalid_prefix_and_version`: Rejection of unknown schemes and unsupported versions.
-- `test_binary_serialization_roundtrip`: Binary LEB128 encoding and decoding accuracy.
-- `test_all_node_types_roundtrip`: End-to-end verification across all 6 node types.
-- `test_empty_payload_rejected`: Prevention of zero-length payloads.
-- `test_total_ordering`: Verification of `Ord` semantics across types and payloads.
-
-### Integration Tests (`mfas-cli`)
-- `test_cli_address_parse`: Human-readable formatted output.
-- `test_cli_address_parse_json`: Structured JSON serialization.
-- `test_cli_address_format`: Parameterized flag-based formatting.
-- `test_cli_address_validate_success` & `test_cli_address_validate_failure`: Proper exit code and diagnostics on validation.
-- `test_cli_address_binary_roundtrip`: CLI `to-binary` and `from-binary` equivalence.
-
-**Test Run Result**:
+### 1. Cargo Test Suite Across Workspace (99 Automated Tests Passing)
 ```text
-running 14 tests (8 core unit + 6 CLI integration)
-test result: ok. 14 passed; 0 failed; 0 ignored; finished in 0.11s
+running 52 tests in crates/mfas-core (unit tests) ... ok (all 52 passed)
+running 3 tests in crates/mfas-core (100MB streaming stress tests) ... ok (all 3 passed)
+running 37 tests in crates/mfas-cli (integration tests) ... ok (all 37 passed)
+running 4 tests in crates/mfas-gpu (evaluator & fallback tests) ... ok (all 4 passed)
+running 3 tests in apps/mfas-desktop/src-tauri (desktop commands) ... ok (all 3 passed)
+
+Overall: 99 passed; 0 failed; 0 ignored; finished with exit code 0.
+```
+
+### 2. Frontend Production Build (`npm run build`)
+```text
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 34 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.48 kB │ gzip:  0.31 kB
+dist/assets/index-AlJFlMnY.css   17.26 kB │ gzip:  3.86 kB
+dist/assets/index-DIwUDyhj.js   275.75 kB │ gzip: 79.99 kB
+✓ built in 12.37s
 ```
 
 ---
 
-## 6. Unresolved Architectural Questions
+## 4. TODO: Files for Review
 
-None for Phase 1 & 2. Ready to proceed to **Phase 3 (Natural Number Mapping $N \leftrightarrow B^*$)**.
+In strict compliance with **Core Rule 1: Never delete files automatically**, the following files are listed for user review:
+
+| File | Size | Reason for Review | Recommended Action |
+|---|---|---|---|
+| `restored_test.md` | 0 B | Empty file created during earlier CLI round-trip test verification | Safe to delete manually |
+| `implementation_plan-1.md` | ~4 KB | Earlier phase plan snapshot | User may retain or delete |
+| `implementation_plan-2.md` | ~2.7 KB | Earlier phase plan snapshot | User may retain or delete |
+| `implementation_plan-3.md` | ~4 KB | Earlier phase plan snapshot | User may retain or delete |

@@ -3,5 +3,6 @@ members = [
     "crates/mfas-core",
     "crates/mfas-cli",
     "crates/mfas-gpu",
+    "apps/mfas-desktop/src-tauri",
 ]
 resolver = "2"
