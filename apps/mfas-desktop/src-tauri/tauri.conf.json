@@ -13,8 +13,8 @@
     "windows": [
       {
         "title": "MFAS Explorer",
-        "width": 1280,
-        "height": 840,
+        "width": 1024,
+        "height": 640,
         "minWidth": 900,
         "minHeight": 600,
         "decorations": false

@@ -8,7 +8,7 @@ interface Props {
 }
 
 export const AddressExplorerView: React.FC<Props> = ({ onStatusChange }) => {
-  const [inputAddress, setInputAddress] = useState('010048656c6c6f');
+  const [inputAddress, setInputAddress] = useState('mfas:v1:data:48656c6c6f');
   const [details, setDetails] = useState<AddressDetailsDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -81,7 +81,7 @@ export const AddressExplorerView: React.FC<Props> = ({ onStatusChange }) => {
                 setInputAddress(e.target.value);
                 handleParse(e.target.value);
               }}
-              placeholder="e.g. 010048656c6c6f or mfas:v1:data:48656c6c6f"
+              placeholder="e.g. mfas:v1:data:48656c6c6f or 010148656c6c6f"
               className="w-full pl-9 pr-3 py-2 text-xs font-mono rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-gray-500"
             />
           </div>
@@ -97,9 +97,10 @@ export const AddressExplorerView: React.FC<Props> = ({ onStatusChange }) => {
         <div className="flex flex-wrap gap-2 mt-3 items-center text-[11px] text-gray-500">
           <span>Samples:</span>
           {[
-            { label: 'Data: "Hello"', val: '010048656c6c6f' },
-            { label: 'Repeat: 3x', val: '0103010048656c6c6f03' },
-            { label: 'Sequence', val: '010202010041010042' },
+            { label: 'Data (URI)', val: 'mfas:v1:data:48656c6c6f' },
+            { label: 'Data (Hex)', val: '010148656c6c6f' },
+            { label: 'Repeat: 3x', val: 'mfas:v1:rep:010148656c6c6f03' },
+            { label: 'Sequence', val: 'mfas:v1:seq:010141010142' },
           ].map((sample) => (
             <button
               key={sample.label}

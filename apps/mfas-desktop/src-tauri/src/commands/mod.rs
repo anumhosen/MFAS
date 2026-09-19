@@ -22,7 +22,12 @@ pub fn parse_address_str(raw: &str) -> Result<Address, String> {
         }
         // Compact hex format: [version (1B), type_id (1B), payload (NB)]
         if bytes.len() >= 2 && bytes[0] == 1 {
-            if let Ok(node_type) = NodeType::from_type_id(bytes[1]) {
+            let node_type_res = if bytes[1] == 0 {
+                Ok(NodeType::Data)
+            } else {
+                NodeType::from_type_id(bytes[1])
+            };
+            if let Ok(node_type) = node_type_res {
                 if let Ok(addr) = Address::new(node_type, bytes[2..].to_vec()) {
                     return Ok(addr);
                 }

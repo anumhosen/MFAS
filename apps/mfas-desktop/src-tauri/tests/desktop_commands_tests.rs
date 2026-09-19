@@ -11,10 +11,15 @@ fn test_desktop_address_commands() {
     assert_eq!(res.payload_len, 5);
     assert!(res.is_valid);
 
-    // Parse compact hex
+    // Parse compact hex (canonical type_id = 1)
     let res_hex = parse_address("010148656c6c6f".to_string()).expect("Should parse hex");
     assert_eq!(res_hex.node_type_name, "Data");
     assert_eq!(res_hex.payload_len, 5);
+
+    // Parse compact hex (legacy/alias type_id = 0)
+    let res_hex0 = parse_address("010048656c6c6f".to_string()).expect("Should parse 00 hex");
+    assert_eq!(res_hex0.node_type_name, "Data");
+    assert_eq!(res_hex0.payload_len, 5);
 
     // Format
     let formatted = format_address(1, "48656c6c6f".to_string()).expect("Should format");

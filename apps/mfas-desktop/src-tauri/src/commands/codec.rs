@@ -108,3 +108,110 @@ pub fn verify_file(path: String) -> Result<VerifyResultDto, String> {
         elapsed_ms,
     })
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileMetadataDto {
+    pub exists: bool,
+    pub file_name: String,
+    pub file_size: u64,
+    pub is_file: bool,
+}
+
+#[tauri::command]
+pub fn get_file_metadata(path: String) -> Result<FileMetadataDto, String> {
+    let p = Path::new(&path);
+    if !p.exists() {
+        return Ok(FileMetadataDto {
+            exists: false,
+            file_name: p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default(),
+            file_size: 0,
+            is_file: false,
+        });
+    }
+
+    let meta = std::fs::metadata(p).map_err(|e| e.to_string())?;
+    Ok(FileMetadataDto {
+        exists: true,
+        file_name: p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default(),
+        file_size: meta.len(),
+        is_file: meta.is_file(),
+    })
+}
+
+#[tauri::command]
+pub fn pick_source_file() -> Result<Option<String>, String> {
+    let file = rfd::FileDialog::new()
+        .set_title("Select File to Encode or Verify")
+        .pick_file();
+    Ok(file.map(|p| p.display().to_string()))
+}
+
+#[tauri::command]
+pub fn pick_destination_file(default_name: Option<String>) -> Result<Option<String>, String> {
+    let mut dialog = rfd::FileDialog::new()
+        .set_title("Select Destination Output File");
+    if let Some(def) = default_name {
+        if !def.is_empty() {
+            dialog = dialog.set_file_name(&def);
+        }
+    }
+    let file = dialog.save_file();
+    Ok(file.map(|p| p.display().to_string()))
+}
+
+#[tauri::command]
+pub fn pick_manifest_file() -> Result<Option<String>, String> {
+    let file = rfd::FileDialog::new()
+        .set_title("Select MFAS Manifest File")
+        .add_filter("MFAS Manifest JSON", &["json"])
+        .pick_file();
+    Ok(file.map(|p| p.display().to_string()))
+}
+
+#[tauri::command]
+pub fn pick_save_manifest_file(default_name: Option<String>) -> Result<Option<String>, String> {
+    let mut dialog = rfd::FileDialog::new()
+        .set_title("Export MFAS Package Manifest")
+        .add_filter("MFAS Manifest JSON", &["json"]);
+    if let Some(def) = default_name {
+        if !def.is_empty() {
+            dialog = dialog.set_file_name(&def);
+        }
+    }
+    let file = dialog.save_file();
+    Ok(file.map(|p| p.display().to_string()))
+}
+
+#[tauri::command]
+pub fn pick_save_address_file(default_name: Option<String>) -> Result<Option<String>, String> {
+    let mut dialog = rfd::FileDialog::new()
+        .set_title("Save Encoded MFAS Address")
+        .add_filter("Text File", &["txt"]);
+    if let Some(def) = default_name {
+        if !def.is_empty() {
+            dialog = dialog.set_file_name(&def);
+        }
+    }
+    let file = dialog.save_file();
+    Ok(file.map(|p| p.display().to_string()))
+}
+
+#[tauri::command]
+pub fn save_text_file(path: String, content: String) -> Result<(), String> {
+    let p = Path::new(&path);
+    if let Some(parent) = p.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(p, content).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn read_text_file(path: String) -> Result<String, String> {
+    let p = Path::new(&path);
+    if !p.exists() {
+        return Err(format!("File does not exist: {}", path));
+    }
+    std::fs::read_to_string(p).map_err(|e| e.to_string())
+}
+

@@ -83,6 +83,13 @@ export interface VerifyResultDto {
   elapsed_ms: number;
 }
 
+export interface FileMetadataDto {
+  exists: boolean;
+  file_name: string;
+  file_size: number;
+  is_file: boolean;
+}
+
 export interface GpuInfoDetailsDto {
   has_gpu: boolean;
   adapter_name: string;
@@ -102,3 +109,29 @@ export interface EvaluatorBenchmarkDto {
   throughput_mbps: number;
   status: string;
 }
+
+export interface MfasPackageManifest {
+  manifest_version: string;
+  created_at: string;
+  source_file: {
+    file_name: string;
+    file_size_bytes: number;
+    file_type: string;
+    sha256: string;
+  };
+  mfas_address: {
+    canonical_uri: string;
+    canonical_hex: string;
+    node_type: string;
+  };
+  pipeline: {
+    codec: string;
+    elapsed_ms: number;
+    verified?: boolean;
+  };
+  reconstruction_guide: {
+    recommended_output_name: string;
+    expected_sha256: string;
+  };
+}
+

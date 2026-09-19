@@ -8,6 +8,7 @@ import type {
   EncodeResultDto,
   DecodeResultDto,
   VerifyResultDto,
+  FileMetadataDto,
   GpuInfoDetailsDto,
   EvaluatorBenchmarkDto,
 } from '../types';
@@ -57,9 +58,9 @@ export const tauriService = {
     // Browser fallback mock
     return {
       raw,
-      canonical_hex: '0100' + (raw.length > 4 ? raw.slice(2) : '00'),
+      canonical_hex: '0101' + (raw.length > 4 ? raw.slice(2) : '00'),
       version: 1,
-      node_type: 0,
+      node_type: 1,
       node_type_name: 'Data',
       payload_hex: '48656c6c6f',
       payload_len: 5,
@@ -185,7 +186,7 @@ export const tauriService = {
     return {
       file_path: path,
       root_address: 'mfas:v1:data:48656c6c6f',
-      canonical_hex: '010048656c6c6f',
+      canonical_hex: '010148656c6c6f',
       file_size: 1048576,
       sha256: '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824',
       elapsed_ms: 12,
@@ -217,6 +218,75 @@ export const tauriService = {
       verified: true,
       elapsed_ms: 19,
     };
+  },
+
+  async getFileMetadata(path: string): Promise<FileMetadataDto> {
+    if (isTauri) {
+      return await invoke<FileMetadataDto>('get_file_metadata', { path });
+    }
+    return {
+      exists: true,
+      file_name: path.split(/[/\\]/).pop() || path,
+      file_size: 24948,
+      is_file: true,
+    };
+  },
+
+  async pickSourceFile(): Promise<string | null> {
+    if (isTauri) {
+      return await invoke<string | null>('pick_source_file');
+    }
+    return prompt('Enter or paste source file path:', 'MFAS Plan.md');
+  },
+
+  async pickDestinationFile(defaultName?: string): Promise<string | null> {
+    if (isTauri) {
+      return await invoke<string | null>('pick_destination_file', { defaultName });
+    }
+    return prompt('Enter destination output file path:', defaultName || 'restored_output.bin');
+  },
+
+  async pickManifestFile(): Promise<string | null> {
+    if (isTauri) {
+      return await invoke<string | null>('pick_manifest_file');
+    }
+    return prompt('Enter or paste manifest JSON path:');
+  },
+
+  async pickSaveManifestFile(defaultName?: string): Promise<string | null> {
+    if (isTauri) {
+      return await invoke<string | null>('pick_save_manifest_file', { defaultName });
+    }
+    return prompt('Enter manifest save file path:', defaultName || 'package.mfas.json');
+  },
+
+  async pickSaveAddressFile(defaultName?: string): Promise<string | null> {
+    if (isTauri) {
+      return await invoke<string | null>('pick_save_address_file', { defaultName });
+    }
+    return prompt('Enter address save file path:', defaultName || 'address.txt');
+  },
+
+  async saveTextFile(path: string, content: string): Promise<void> {
+    if (isTauri) {
+      await invoke<void>('save_text_file', { path, content });
+      return;
+    }
+    // Browser download fallback
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = path.split(/[/\\]/).pop() || 'file.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+
+  async readTextFile(path: string): Promise<string> {
+    if (isTauri) {
+      return await invoke<string>('read_text_file', { path });
+    }
+    return '{}';
   },
 
   // GPU & Benchmark
